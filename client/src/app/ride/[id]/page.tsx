@@ -606,7 +606,9 @@ function RidePageContent({ rideId }: { rideId: string }) {
           <Card className="overflow-hidden border-white/10 bg-[#111114]/90">
             <div className="flex flex-wrap items-start justify-between gap-3 border-b border-white/[0.07] p-5">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-red-300">Ride in progress</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-red-300">
+                  {statusEyebrow(ride.status)}
+                </p>
                 <h1 className="mt-1 font-display text-2xl font-bold text-white">
                   {statusHeadline(ride.status, isDriver)}
                 </h1>
@@ -1014,6 +1016,17 @@ const statusHeadline = (status: RideStatus, isDriver: boolean): string => {
     case "ARRIVED": return isDriver ? "You’ve arrived" : "Your driver has arrived";
     case "IN_PROGRESS": return "Enjoy the ride";
     case "COMPLETED": return "You’ve reached your destination";
+    case "CANCELLED": return "Ride cancelled";
+  }
+};
+
+const statusEyebrow = (status: RideStatus): string => {
+  switch (status) {
+    case "REQUESTED": return "Finding a driver";
+    case "ACCEPTED": return "Driver assigned";
+    case "ARRIVED": return "Driver arrived";
+    case "IN_PROGRESS": return "Ride in progress";
+    case "COMPLETED": return "Trip complete";
     case "CANCELLED": return "Ride cancelled";
   }
 };
