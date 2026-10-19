@@ -37,7 +37,7 @@ import { CurrencyToggle } from "@/components/shared/currency-toggle";
 
 const navigationLinks = [
   { label: "Home", href: "/" },
-  { label: "Book a Ride", href: "/rider" },
+  { label: "Book a Ride", href: "/book" },
   { label: "Drive with us", href: "/driver" },
   { label: "History", href: "/history" },
   { label: "About", href: "/info/about" },

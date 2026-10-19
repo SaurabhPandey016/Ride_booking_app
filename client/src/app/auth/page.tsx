@@ -63,6 +63,11 @@ export default function AuthPage() {
   const role = registerForm.watch("role");
 
   const redirectForRole = (userRole: UserRole) => {
+    const nextPath = new URLSearchParams(window.location.search).get("next");
+    if (nextPath?.startsWith("/book") && !nextPath.startsWith("//")) {
+      router.replace(nextPath);
+      return;
+    }
     router.replace(userRole === "DRIVER" ? "/driver" : "/rider");
   };
 
