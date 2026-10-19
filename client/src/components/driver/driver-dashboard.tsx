@@ -27,6 +27,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PageSkeleton } from "@/components/shared/page-skeleton";
 import { useCurrency } from "@/hooks/use-currency";
 import { api, normalizeApiError } from "@/lib/api";
 import { formatPaise } from "@/lib/format";
@@ -519,11 +520,7 @@ export function DriverDashboard() {
   const chartPayouts = useMemo(() => earnings?.dailyPayouts ?? [], [earnings]);
 
   if (loading) {
-    return (
-      <div className="mx-auto flex min-h-[60vh] max-w-6xl items-center justify-center px-5" aria-live="polite">
-        <LoaderCircle aria-label="Loading driver dashboard" className="h-7 w-7 animate-spin text-red-400" />
-      </div>
-    );
+    return <PageSkeleton cards={3} />;
   }
 
   return (

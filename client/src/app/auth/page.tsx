@@ -20,6 +20,7 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import { AuthIntro } from "@/components/auth/auth-intro";
+import { PageSkeleton } from "@/components/shared/page-skeleton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -210,11 +211,7 @@ export default function AuthPage() {
   });
 
   if (isLoading || user) {
-    return (
-      <main className="flex min-h-[calc(100vh-4.5rem)] items-center justify-center">
-        <LoaderCircle aria-label="Loading your account" className="h-7 w-7 animate-spin text-red-400" />
-      </main>
-    );
+    return <PageSkeleton cards={1} />;
   }
 
   return (

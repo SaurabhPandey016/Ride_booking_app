@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { ArrowLeft, Coins, LoaderCircle, Wallet } from "lucide-react";
+import { ArrowLeft, Coins, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -11,6 +11,7 @@ import {
   type DriverEarningsData,
 } from "@/components/driver/driver-dashboard";
 import { ProtectedRoute } from "@/components/shared/protected-route";
+import { PageSkeleton } from "@/components/shared/page-skeleton";
 import { api, normalizeApiError } from "@/lib/api";
 
 type EarningsResponse = { data: { earnings: DriverEarningsData } };
@@ -47,9 +48,7 @@ function EarningsContent() {
       <p className="mt-2 text-sm text-zinc-400">Your payouts from completed, paid rides.</p>
 
       {loading ? (
-        <div className="flex min-h-64 items-center justify-center" aria-live="polite">
-          <LoaderCircle aria-label="Loading earnings" className="h-6 w-6 animate-spin text-red-400" />
-        </div>
+        <PageSkeleton cards={3} />
       ) : error ? (
         <Card className="mt-7 border-red-400/20 bg-red-400/[0.06]">
           <CardHeader>

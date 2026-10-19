@@ -2,9 +2,9 @@
 
 import { useEffect, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { LoaderCircle } from "lucide-react";
 import { useAuthStore } from "@/store/auth-store";
 import type { UserRole } from "@/types/auth";
+import { PageSkeleton } from "@/components/shared/page-skeleton";
 
 type ProtectedRouteProps = {
   children: ReactNode;
@@ -38,11 +38,7 @@ export function ProtectedRoute({ children, role }: ProtectedRouteProps) {
   }
 
   if (isLoading || !user || (role !== undefined && user.role !== role)) {
-    return (
-      <main className="flex min-h-screen items-center justify-center" aria-live="polite">
-        <LoaderCircle aria-label="Loading your account" className="h-6 w-6 animate-spin text-red-400" />
-      </main>
-    );
+    return <PageSkeleton />;
   }
 
   return children;

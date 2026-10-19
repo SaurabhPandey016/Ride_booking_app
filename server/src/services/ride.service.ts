@@ -73,6 +73,7 @@ const rideSelect = {
           vehicleModel: true,
           vehicleNumber: true,
           ratingAvg: true,
+          ratingCount: true,
         },
       },
     },
@@ -288,7 +289,7 @@ export const getRideForParticipant = async (rideId: string, userId: string) => {
       id: rideId,
       OR: [{ riderId: userId }, { driverId: userId }],
     },
-    select: rideSelect,
+    select: rideHistorySelect,
   });
   if (!ride) {
     throw new AppError(404, "Ride not found");

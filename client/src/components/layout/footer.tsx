@@ -3,25 +3,25 @@ import { Apple, Github, Linkedin, Mail, Play } from "lucide-react";
 import { BrandMark } from "./brand-mark";
 
 const companyLinks = [
-  ["About", "/info/about"],
+  ["About", "/about"],
   ["Careers", "/info/careers"],
   ["Blog", "/info/blog"],
   ["Press", "/info/press"],
 ] as const;
 
 const productLinks = [
-  ["Book a Ride", "/rider"],
-  ["Drive with us", "/driver"],
-  ["Pricing", "/info/pricing"],
-  ["Safety", "/info/safety"],
+  ["Book a Ride", "/book"],
+  ["Drive with us", "/drive"],
+  ["Pricing", "/pricing"],
+  ["Safety", "/safety"],
 ] as const;
 
 const supportLinks = [
-  ["Help Center", "/info/help-center"],
-  ["Contact", "/info/contact"],
-  ["Terms of Service", "/info/terms-of-service"],
-  ["Privacy Policy", "/info/privacy-policy"],
-  ["Cookie Policy", "/info/cookie-policy"],
+  ["Help Center", "/help"],
+  ["Contact", "/contact"],
+  ["Terms of Service", "/terms"],
+  ["Privacy Policy", "/privacy"],
+  ["Cookie Policy", "/cookies"],
 ] as const;
 
 const stack = [

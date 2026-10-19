@@ -10,10 +10,16 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
     });
   }
 
-  const status = err.statusCode ?? 500;
+  const candidateStatus = typeof err === 'object' && err !== null && 'status' in err
+    ? err.status
+    : typeof err === 'object' && err !== null && 'statusCode' in err
+      ? err.statusCode
+      : undefined;
+  const status = typeof candidateStatus === 'number' && candidateStatus >= 400 && candidateStatus < 500
+    ? candidateStatus
+    : 500;
   return res.status(status).json({
     success: false,
-    message: 'Internal server error',
-    errors: err instanceof Error ? err.message : 'Unexpected error',
+    message: status === 500 ? 'Internal server error' : 'Invalid request',
   });
 };

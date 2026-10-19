@@ -34,6 +34,25 @@ html {
   min-height: 100%;
   scroll-behavior: smooth;
   background: #09090b;
+  overflow-x: clip;
+}
+
+body {
+  overflow-x: clip;
+}
+
+button,
+a,
+input,
+select,
+textarea,
+[role="button"] {
+  -webkit-tap-highlight-color: transparent;
+}
+
+:where(button, a, input, select, textarea, [role="button"], [tabindex]):focus-visible {
+  outline: 2px solid #ef4444;
+  outline-offset: 3px;
 }
 
 @layer base {
@@ -50,7 +69,7 @@ html {
   }
 
   a {
-    @apply transition-colors;
+    @apply transition-colors duration-200;
   }
 
   h1,
@@ -233,6 +252,54 @@ html {
 .heartbeat {
   display: inline-block;
   animation: gentle-heartbeat 2.2s ease-in-out infinite;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 16mm;
+  }
+
+  html,
+  body {
+    min-height: 0 !important;
+    background: #fff !important;
+    color: #111 !important;
+  }
+
+  body {
+    background-image: none !important;
+  }
+
+  body header:not(.receipt-paper header),
+  body footer:not(.receipt-paper footer),
+  .print\:hidden {
+    display: none !important;
+  }
+
+  .receipt-page {
+    width: 100% !important;
+    max-width: none !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .receipt-paper {
+    overflow: visible !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: #fff !important;
+    color: #111 !important;
+    box-shadow: none !important;
+  }
+
+  .receipt-paper * {
+    border-color: #ddd !important;
+    background-color: transparent !important;
+    color: #111 !important;
+    box-shadow: none !important;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

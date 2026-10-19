@@ -1,0 +1,105 @@
+# RideX Client
+
+The RideX client is a responsive Next.js App Router application for riders and drivers. It provides account screens, ride booking and tracking, driver operations, payment/review flows, trip history, and printable receipts.
+
+## Stack
+
+- Next.js 14 App Router, React 18, TypeScript
+- Tailwind CSS, Radix UI primitives, shadcn-style components, lucide-react
+- Framer Motion, Sonner, React Hook Form, Zod
+- Axios, Zustand, Socket.io Client
+- Leaflet and React Leaflet, Stripe Elements
+
+## Structure
+
+```text
+src/
+├── app/             # Route pages, shared layout, loading/error/not-found UI
+├── components/
+│   ├── auth/        # Auth introduction
+│   ├── booking/     # Booking panel and Leaflet ride map
+│   ├── driver/      # Driver dashboard
+│   ├── history/     # History list and empty states
+│   ├── info/        # Shared informational page content
+│   ├── landing/     # Landing-page sections
+│   ├── layout/      # Navbar, footer, brand mark
+│   ├── receipt/     # Receipt display and print layout
+│   ├── ride/        # Ride tracking, status, Stripe form
+│   ├── shared/      # Providers, route guards, skeletons
+│   └── ui/          # Reusable Radix-based UI primitives
+├── hooks/           # Auth and currency hooks
+├── lib/             # API client, formatting, socket, utility functions
+├── store/           # Zustand auth store
+└── types/           # Client API and domain types
+```
+
+## Environment
+
+Create `client/.env.local`:
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `NEXT_PUBLIC_API_URL` | `http://localhost:4000/api` | Express REST base URL. The Socket.io client derives the server origin by removing `/api`. |
+| `NEXT_PUBLIC_USD_INR_RATE` | `83` | Rate used by client fare formatting. Keep aligned with server `USD_INR_RATE`. |
+| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | — | Stripe publishable key. Use a `pk_test_...` key for local test-mode card checkout. |
+
+The API uses cookie credentials; configure the server's `CLIENT_URL` to the exact client origin. Public `NEXT_PUBLIC_*` values are included in the browser bundle and must never contain secrets.
+
+## Scripts
+
+Run these from the repository root:
+
+| Command | Purpose |
+| --- | --- |
+| `npm run dev --workspace @ridex/client` | Start the Next.js development server |
+| `npm run build --workspace @ridex/client` | Create a production build |
+| `npm run start --workspace @ridex/client` | Serve the production build |
+| `npm run typecheck --workspace @ridex/client` | Run TypeScript checks |
+| `npm run lint --workspace @ridex/client` | Run Next.js ESLint checks |
+
+## Design system
+
+The interface is dark-first, with global tokens defined in `src/app/globals.css`.
+
+| Token | Value / use |
+| --- | --- |
+| Background | `#09090b` |
+| Card | Near `#111114` |
+| Foreground | Near-white |
+| Muted text | Zinc gray |
+| Primary / focus | Red `#ef4444`; hover red `#dc2626` |
+| Accent | Deep red |
+| Border | Translucent white |
+
+Shared visual utilities include `.gradient-text`, `.gradient-red`, `.glass`, and `.glow-red`. Components in `components/ui` provide buttons, cards, forms, dialogs, menus, tabs, sheets, skeletons, and toasts. Keyboard focus uses a visible red focus ring; the common interactive controls have a 44px minimum target.
+
+## Key pages
+
+| Route | Purpose |
+| --- | --- |
+| `/` | Marketing landing page and booking entry |
+| `/auth` | Login and role-aware rider/driver registration |
+| `/book` | Rider place search, route preview, estimate, and ride request |
+| `/driver` | Driver availability, nearby requests, and earnings overview |
+| `/driver/earnings` | Driver payout summaries |
+| `/ride/[id]` | Participant ride status, tracking, payment, review, and receipt actions |
+| `/history` | Paginated trip history for signed-in users |
+| `/history/[id]` | Trip details |
+| `/receipt/[rideId]` | Participant-only printable receipt |
+| `/profile` | Profile and driver vehicle information |
+| `/about`, `/drive`, `/pricing`, `/safety`, `/help`, `/contact`, `/terms`, `/privacy`, `/cookies` | Informational pages |
+
+## State and API
+
+- `shared/auth-provider.tsx` checks `/auth/me` on app load. Protected pages use `ProtectedRoute`; auth state is held in the Zustand store.
+- `shared/currency-provider.tsx` keeps the INR/USD display choice in local storage. Server fare/payment amounts remain server-authoritative.
+- `lib/api.ts` configures Axios with `withCredentials: true` and normalizes API errors.
+- `lib/socket.ts` creates a cookie-authenticated Socket.io connection from `NEXT_PUBLIC_API_URL`.
+
+## Maps and live rides
+
+The Leaflet booking map is dynamically imported with server-side rendering disabled. It uses OpenStreetMap tiles and attribution, custom pickup/drop/driver markers, and route geometry returned from the API. Search, reverse geocoding, and route requests go through the Express API; the browser does not call Nominatim or OSRM directly.
+
+Ride pages join the participant-authorized `ride:{id}` socket room and listen for ride status and driver location events. The server validates room membership and throttles driver location updates. Stripe Elements is loaded dynamically only when the payment flow is active.
+
+For API endpoints and socket event payloads, see the [root README](../README.md#api-overview) and [server README](../server/README.md).
