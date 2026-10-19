@@ -1,0 +1,128 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  RIDER
+  DRIVER
+}
+
+enum RideStatus {
+  REQUESTED
+  ACCEPTED
+  ARRIVED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+}
+
+enum VehicleType {
+  BIKE
+  AUTO
+  CAB
+  PREMIUM
+}
+
+model User {
+  id           String          @id @default(cuid())
+  name         String
+  email        String          @unique
+  phone        String
+  passwordHash String
+  role         Role
+  avatarUrl    String?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  driverProfile DriverProfile?
+  ridesAsRider Ride[]          @relation("RideRider")
+  ridesAsDriver Ride[]         @relation("RideDriver")
+  reviewsGiven Review[]        @relation("ReviewRider")
+  reviewsReceived Review[]     @relation("ReviewDriver")
+}
+
+model DriverProfile {
+  id                  String      @id @default(cuid())
+  userId              String      @unique
+  vehicleType         VehicleType
+  vehicleModel        String
+  vehicleNumber       String
+  isOnline            Boolean     @default(false)
+  currentLat          Float?
+  currentLng          Float?
+  ratingAvg           Float       @default(0)
+  ratingCount         Int         @default(0)
+  totalEarningsPaise  Int         @default(0)
+  user                User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([isOnline])
+}
+
+model Ride {
+  id             String      @id @default(cuid())
+  riderId        String
+  driverId       String?
+  status         RideStatus  @default(REQUESTED)
+  vehicleType    VehicleType
+  pickupAddress  String
+  pickupLat      Float
+  pickupLng      Float
+  dropAddress    String
+  dropLat        Float
+  dropLng        Float
+  distanceKm     Float
+  durationMin    Int
+  farePaise      Int
+  routeGeometry  Json?
+  requestedAt    DateTime    @default(now())
+  acceptedAt     DateTime?
+  startedAt      DateTime?
+  completedAt    DateTime?
+  cancelledAt    DateTime?
+  cancelReason   String?
+  rider          User        @relation("RideRider", fields: [riderId], references: [id])
+  driver         User?       @relation("RideDriver", fields: [driverId], references: [id])
+  payment        Payment?
+  review         Review?
+
+  @@index([status])
+  @@index([riderId])
+  @@index([driverId])
+}
+
+model Payment {
+  id                    String        @id @default(cuid())
+  rideId                String        @unique
+  stripePaymentIntentId  String        @unique
+  amountMinor           Int
+  currency              String        @default("INR")
+  status                PaymentStatus @default(PENDING)
+  receiptNumber         String        @unique
+  createdAt             DateTime      @default(now())
+  paidAt                DateTime?
+  ride                  Ride          @relation(fields: [rideId], references: [id], onDelete: Cascade)
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  rideId    String   @unique
+  riderId   String
+  driverId  String
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+  ride      Ride     @relation(fields: [rideId], references: [id], onDelete: Cascade)
+  rider     User     @relation("ReviewRider", fields: [riderId], references: [id])
+  driver    User     @relation("ReviewDriver", fields: [driverId], references: [id])
+}
