@@ -519,6 +519,7 @@ export const getDriverEarnings = async (driverId: string) => {
     }),
   ]);
 
+  const lastSevenDaysStart = new Date(todayStart.getTime() - 6 * 24 * 60 * 60 * 1000);
   const payoutBetween = (from: Date, until?: Date) =>
     paidRides.reduce((total, ride) => {
       if (
@@ -532,10 +533,20 @@ export const getDriverEarnings = async (driverId: string) => {
       return total + Math.floor((ride.farePaise * 85) / 100);
     }, 0);
 
+  const dailyPayouts = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(lastSevenDaysStart.getTime() + index * 24 * 60 * 60 * 1000);
+    const nextDate = new Date(date.getTime() + 24 * 60 * 60 * 1000);
+    return {
+      date: date.toISOString().slice(0, 10),
+      amountPaise: payoutBetween(date, nextDate),
+    };
+  });
+
   return {
     todayPaise: payoutBetween(todayStart),
     thisWeekPaise: payoutBetween(weekStart),
     allTimePaise: payoutBetween(new Date(0)),
     tripCount,
+    dailyPayouts,
   };
 };

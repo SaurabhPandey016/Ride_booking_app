@@ -100,6 +100,87 @@ html {
     background-size: 220% 100%;
     animation: connector-flow 4s ease-in-out infinite;
   }
+
+  .ridex-leaflet-map {
+    background: #09090b;
+    font-family: var(--font-inter), sans-serif;
+  }
+
+  .ridex-leaflet-map .leaflet-control-attribution {
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 6px 0 0;
+    background: rgba(9, 9, 11, 0.82);
+    color: #a1a1aa;
+    font-size: 10px;
+    backdrop-filter: blur(8px);
+  }
+
+  .ridex-leaflet-map .leaflet-control-attribution a {
+    color: #fca5a5;
+  }
+
+  .ridex-leaflet-map .leaflet-control-zoom a {
+    border-color: rgba(255, 255, 255, 0.1);
+    background: rgba(9, 9, 11, 0.88);
+    color: #e4e4e7;
+  }
+
+  .ridex-pickup-icon,
+  .ridex-drop-icon,
+  .ridex-driver-icon {
+    border: 0;
+    background: transparent;
+  }
+
+  .ridex-map-pickup-dot {
+    display: block;
+    width: 18px;
+    height: 18px;
+    border: 4px solid #052e16;
+    border-radius: 50%;
+    background: #4ade80;
+    box-shadow: 0 0 0 5px rgba(74, 222, 128, 0.18), 0 0 18px rgba(74, 222, 128, 0.65);
+  }
+
+  .ridex-map-drop-pin {
+    position: relative;
+    display: block;
+    width: 25px;
+    height: 25px;
+    border: 3px solid #fff1f2;
+    border-radius: 50% 50% 50% 0;
+    background: #ef4444;
+    box-shadow: 0 4px 16px rgba(239, 68, 68, 0.45);
+    transform: rotate(-45deg);
+  }
+
+  .ridex-map-drop-pin::after {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #fff;
+    content: "";
+  }
+
+  .ridex-map-driver-car {
+    display: grid;
+    width: 36px;
+    height: 36px;
+    place-items: center;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    background: #18181b;
+    color: #fca5a5;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.5);
+  }
+
+  .ridex-map-driver-car svg {
+    width: 22px;
+    height: 22px;
+  }
 }
 
 @keyframes glow-drift {
