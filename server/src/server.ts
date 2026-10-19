@@ -1,8 +1,13 @@
+import { createServer } from "node:http";
 import app from "./app.js";
 import { env } from "./config/env.js";
 import { prisma } from "./config/prisma.js";
+import { attachSocketServer } from "./utils/socket.js";
 
-const server = app.listen(env.PORT, () => {
+const server = createServer(app);
+const io = attachSocketServer(server);
+
+server.listen(env.PORT, () => {
   console.log(`RideX server running on http://localhost:${env.PORT}`);
 });
 
@@ -16,12 +21,7 @@ const shutdown = (signal: NodeJS.Signals) => {
   isShuttingDown = true;
   console.info(`${signal} received; closing HTTP server and Prisma client.`);
 
-  server.close((error) => {
-    if (error) {
-      console.error("Failed to close HTTP server gracefully:", error);
-      process.exitCode = 1;
-    }
-
+  io.close(() => {
     void prisma.$disconnect().catch((disconnectError: unknown) => {
       console.error("Failed to disconnect Prisma client:", disconnectError);
       process.exitCode = 1;
