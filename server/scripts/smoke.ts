@@ -1,8 +1,10 @@
 import "../src/config/env.js";
 import { Role, VehicleType } from "@prisma/client";
 import { createServer } from "node:http";
+import { env } from "../src/config/env.js";
 import { prisma } from "../src/config/prisma.js";
 import app from "../src/app.js";
+import { stripe } from "../src/config/stripe.js";
 import { attachSocketServer } from "../src/utils/socket.js";
 import {
   io as createSocketClient,
@@ -166,7 +168,11 @@ const runSmoke = async () => {
       headers: { "content-type": "application/json", cookie },
       body: JSON.stringify({ vehicleModel: "Updated Smoke Sedan" }),
     });
-    requireStatus(updateProfileResponse, 200, "Update driver profile");
+    if (!updateProfileResponse.ok) {
+      throw new Error(
+        `Update driver profile failed: HTTP ${updateProfileResponse.status} ${await updateProfileResponse.text()}`,
+      );
+    }
     console.info("PASS update driver vehicle profile");
     const driverCookie = cookie;
 
@@ -439,13 +445,153 @@ const runSmoke = async () => {
     const earningsResult = (await earningsResponse.json()) as {
       data: { earnings: { tripCount: number; allTimePaise: number } };
     };
-    if (
-      earningsResult.data.earnings.tripCount < 1 ||
-      earningsResult.data.earnings.allTimePaise < createdRide.data.ride.farePaise
-    ) {
-      throw new Error("Completed ride was not included in driver earnings");
+    if (earningsResult.data.earnings.tripCount < 1) {
+      throw new Error("Completed ride was not included in driver trip count");
     }
-    console.info("PASS driver earnings include completed ride");
+    const earningsBeforePayment = earningsResult.data.earnings.allTimePaise;
+    console.info("PASS completed ride recorded; payout awaits successful payment");
+
+    const paymentIntentResponse = await fetch(
+      `http://127.0.0.1:${address.port}/api/payments/intent`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json", cookie: riderCookie },
+        body: JSON.stringify({ rideId, currency: "INR" }),
+      },
+    );
+    requireStatus(paymentIntentResponse, 201, "Create payment intent");
+    const paymentIntentResult = (await paymentIntentResponse.json()) as {
+      data: {
+        paymentIntentId: string;
+        clientSecret: string;
+        payment: { id: string; amountMinor: number; currency: string; status: string };
+      };
+    };
+    const paymentIntentId = paymentIntentResult.data.paymentIntentId;
+    if (!paymentIntentId.startsWith("pi_")) {
+      throw new Error("Payment intent response did not include a Stripe payment intent ID");
+    }
+    console.info(
+      "Payment intent created:",
+      JSON.stringify({
+        id: paymentIntentId,
+        amountMinor: paymentIntentResult.data.payment.amountMinor,
+        currency: paymentIntentResult.data.payment.currency,
+        status: paymentIntentResult.data.payment.status,
+      }),
+    );
+
+    const confirmedIntent = await stripe.paymentIntents.confirm(paymentIntentId, {
+      payment_method: "pm_card_visa",
+    });
+    if (confirmedIntent.status !== "succeeded") {
+      throw new Error(`Stripe test card did not succeed: ${confirmedIntent.status}`);
+    }
+    console.info(`Stripe test payment: ${confirmedIntent.status}`);
+
+    const paymentConfirmResponse = await fetch(
+      `http://127.0.0.1:${address.port}/api/payments/confirm`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json", cookie: riderCookie },
+        body: JSON.stringify({ paymentIntentId }),
+      },
+    );
+    requireStatus(paymentConfirmResponse, 200, "Confirm successful payment");
+    const paymentConfirmResult = (await paymentConfirmResponse.json()) as {
+      data: { payment: { status: string; credited: boolean } };
+    };
+    if (
+      paymentConfirmResult.data.payment.status !== "SUCCEEDED" ||
+      !paymentConfirmResult.data.payment.credited
+    ) {
+      throw new Error("Successful payment was not credited to the driver");
+    }
+    console.info("PASS payment confirmed and driver payout credited once");
+
+    if (env.STRIPE_WEBHOOK_SECRET) {
+      const webhookPayload = JSON.stringify({
+        id: `evt_smoke_${Date.now()}`,
+        object: "event",
+        api_version: "2025-03-31.basil",
+        created: Math.floor(Date.now() / 1000),
+        data: { object: confirmedIntent },
+        livemode: false,
+        pending_webhooks: 1,
+        request: null,
+        type: "payment_intent.succeeded",
+      });
+      const webhookSignature = stripe.webhooks.generateTestHeaderString({
+        payload: webhookPayload,
+        secret: env.STRIPE_WEBHOOK_SECRET,
+      });
+      const webhookResponse = await fetch(
+        `http://127.0.0.1:${address.port}/api/payments/webhook`,
+        {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "stripe-signature": webhookSignature,
+          },
+          body: webhookPayload,
+        },
+      );
+      if (!webhookResponse.ok) {
+        throw new Error(
+          `Replay succeeded payment webhook failed: HTTP ${webhookResponse.status} ${await webhookResponse.text()}`,
+        );
+      }
+      console.info("PASS signed duplicate success webhook accepted idempotently");
+    } else {
+      console.info("SKIP signed webhook replay: STRIPE_WEBHOOK_SECRET is not configured");
+    }
+
+    const repeatedConfirmResponse = await fetch(
+      `http://127.0.0.1:${address.port}/api/payments/confirm`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json", cookie: riderCookie },
+        body: JSON.stringify({ paymentIntentId }),
+      },
+    );
+    requireStatus(repeatedConfirmResponse, 200, "Repeat payment confirmation");
+    const repeatedConfirmResult = (await repeatedConfirmResponse.json()) as {
+      data: { payment: { credited: boolean } };
+    };
+    if (repeatedConfirmResult.data.payment.credited) {
+      throw new Error("Repeated payment confirmation credited driver earnings twice");
+    }
+
+    const earningsAfterResponse = await fetch(
+      `http://127.0.0.1:${address.port}/api/driver/earnings`,
+      { headers: { cookie: driverCookie } },
+    );
+    requireStatus(earningsAfterResponse, 200, "Driver earnings after payment");
+    const earningsAfter = (await earningsAfterResponse.json()) as {
+      data: { earnings: { allTimePaise: number } };
+    };
+    const expectedPayoutPaise = Math.floor((createdRide.data.ride.farePaise * 85) / 100);
+    if (
+      earningsAfter.data.earnings.allTimePaise - earningsBeforePayment !==
+      expectedPayoutPaise
+    ) {
+      throw new Error("Driver earnings did not increase by exactly 85% of the fare");
+    }
+    console.info(
+      "Driver payout change:",
+      JSON.stringify({
+        beforePaise: earningsBeforePayment,
+        afterPaise: earningsAfter.data.earnings.allTimePaise,
+        creditedPaise: expectedPayoutPaise,
+      }),
+    );
+
+    const paymentStatusResponse = await fetch(
+      `http://127.0.0.1:${address.port}/api/payments/${rideId}`,
+      { headers: { cookie: riderCookie } },
+    );
+    requireStatus(paymentStatusResponse, 200, "Get ride payment");
+    console.info("PASS rider can retrieve payment status");
 
     console.info("Socket events received:", JSON.stringify(socketEvents));
   } finally {

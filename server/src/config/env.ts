@@ -12,4 +12,6 @@ export const env = {
   NOMINATIM_USER_AGENT: process.env.NOMINATIM_USER_AGENT ?? 'RideX/1.0 (maps contact: support@ridex.example)',
   NOMINATIM_COUNTRYCODES: process.env.NOMINATIM_COUNTRYCODES,
   OSRM_BASE_URL: process.env.OSRM_BASE_URL ?? 'https://router.project-osrm.org',
+  STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY ?? '',
+  STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET ?? '',
 };

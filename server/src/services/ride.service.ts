@@ -442,13 +442,6 @@ const transitionRide = async (
       throw new AppError(409, "Ride state changed; refresh and try again");
     }
 
-    if (targetStatus === RideStatus.COMPLETED && currentRide.driverId) {
-      await transaction.driverProfile.update({
-        where: { userId: currentRide.driverId },
-        data: { totalEarningsPaise: { increment: currentRide.farePaise } },
-      });
-    }
-
     return transaction.ride.findUniqueOrThrow({
       where: { id: rideId },
       select: rideSelect,
@@ -481,34 +474,37 @@ export const getDriverEarnings = async (driverId: string) => {
   const mondayOffset = (todayStart.getUTCDay() + 6) % 7;
   const weekStart = new Date(todayStart.getTime() - mondayOffset * 24 * 60 * 60 * 1000);
 
-  const [today, thisWeek, allTime, tripCount] = await Promise.all([
-    prisma.ride.aggregate({
+  const [paidRides, tripCount] = await Promise.all([
+    prisma.ride.findMany({
       where: {
         driverId,
         status: RideStatus.COMPLETED,
-        completedAt: { gte: todayStart },
+        payment: { status: "SUCCEEDED" },
       },
-      _sum: { farePaise: true },
+      select: { farePaise: true, completedAt: true },
     }),
-    prisma.ride.aggregate({
-      where: {
-        driverId,
-        status: RideStatus.COMPLETED,
-        completedAt: { gte: weekStart },
-      },
-      _sum: { farePaise: true },
-    }),
-    prisma.ride.aggregate({
+    prisma.ride.count({
       where: { driverId, status: RideStatus.COMPLETED },
-      _sum: { farePaise: true },
     }),
-    prisma.ride.count({ where: { driverId, status: RideStatus.COMPLETED } }),
   ]);
 
+  const payoutBetween = (from: Date, until?: Date) =>
+    paidRides.reduce((total, ride) => {
+      if (
+        !ride.completedAt ||
+        ride.completedAt < from ||
+        (until !== undefined && ride.completedAt >= until)
+      ) {
+        return total;
+      }
+
+      return total + Math.floor((ride.farePaise * 85) / 100);
+    }, 0);
+
   return {
-    todayPaise: today._sum.farePaise ?? 0,
-    thisWeekPaise: thisWeek._sum.farePaise ?? 0,
-    allTimePaise: allTime._sum.farePaise ?? 0,
+    todayPaise: payoutBetween(todayStart),
+    thisWeekPaise: payoutBetween(weekStart),
+    allTimePaise: payoutBetween(new Date(0)),
     tripCount,
   };
 };
