@@ -110,6 +110,89 @@ const runSmoke = async () => {
     });
     requireStatus(updateProfileResponse, 200, "Update driver profile");
     console.info("PASS update driver vehicle profile");
+
+    const searchResponse = await fetch(
+      `${new URL("/api/maps/search", `http://127.0.0.1:${address.port}`).toString()}?q=Rewa`,
+      { headers: { cookie } },
+    );
+    requireStatus(searchResponse, 200, "Location search");
+    const searchResult = (await searchResponse.json()) as {
+      data: { results: Array<{ label: string; lat: number; lng: number }> };
+    };
+    console.info("Location search result:", JSON.stringify(searchResult.data.results));
+
+    const trip = {
+      pickup: { lat: 28.6139, lng: 77.209 },
+      drop: { lat: 27.1767, lng: 78.0081 },
+    };
+    const reverseResponse = await fetch(
+      `http://127.0.0.1:${address.port}/api/maps/reverse?lat=${trip.pickup.lat}&lng=${trip.pickup.lng}`,
+      { headers: { cookie } },
+    );
+    requireStatus(reverseResponse, 200, "Reverse geocoding");
+    const reverseResult = (await reverseResponse.json()) as {
+      data: { place: { label: string; lat: number; lng: number } };
+    };
+    console.info("Reverse geocode result:", JSON.stringify(reverseResult.data.place));
+
+    const routeResponse = await fetch(
+      `http://127.0.0.1:${address.port}/api/maps/route`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json", cookie },
+        body: JSON.stringify(trip),
+      },
+    );
+    requireStatus(routeResponse, 200, "Route calculation");
+    const routeResult = (await routeResponse.json()) as {
+      data: {
+        route: {
+          distanceKm: number;
+          durationMin: number;
+          geometry: { type: string; coordinates: [number, number][] };
+        };
+      };
+    };
+    console.info(
+      "Route result:",
+      JSON.stringify({
+        distanceKm: routeResult.data.route.distanceKm,
+        durationMin: routeResult.data.route.durationMin,
+        geometryType: routeResult.data.route.geometry.type,
+        coordinateCount: routeResult.data.route.geometry.coordinates.length,
+      }),
+    );
+
+    const estimateResponse = await fetch(
+      `http://127.0.0.1:${address.port}/api/rides/estimate`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json", cookie },
+        body: JSON.stringify(trip),
+      },
+    );
+    requireStatus(estimateResponse, 200, "Ride estimate");
+    const estimateResult = (await estimateResponse.json()) as {
+      data: {
+        route: { distanceKm: number; durationMin: number };
+        fares: Array<{
+          vehicleType: string;
+          farePaise: number;
+          fareINR: number;
+          fareUSD: number;
+        }>;
+      };
+    };
+    console.info(
+      "Ride estimate result:",
+      JSON.stringify({
+        route: {
+          distanceKm: estimateResult.data.route.distanceKm,
+          durationMin: estimateResult.data.route.durationMin,
+        },
+        fares: estimateResult.data.fares,
+      }),
+    );
   } finally {
     if (server.listening) {
       await new Promise<void>((resolve, reject) => {
