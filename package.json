@@ -9,7 +9,8 @@
     "dev": "concurrently \"npm run dev --workspace client\" \"npm run dev --workspace server\"",
     "build": "npm run build --workspace client && npm run build --workspace server",
     "typecheck": "npm run typecheck --workspace client && npm run typecheck --workspace server",
-    "smoke": "npm run smoke --workspace @ridex/server"
+    "smoke": "npm run smoke --workspace @ridex/server",
+    "lint": "npm run lint --workspace @ridex/client"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

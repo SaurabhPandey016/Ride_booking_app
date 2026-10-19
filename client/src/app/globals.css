@@ -1,0 +1,84 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  --background: 240 10% 3.5%;
+  --foreground: 0 0% 98%;
+  --card: 240 7% 7%;
+  --card-foreground: 0 0% 98%;
+  --popover: 240 7% 7%;
+  --popover-foreground: 0 0% 98%;
+  --primary: 0 84% 60%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 240 4% 14%;
+  --secondary-foreground: 0 0% 98%;
+  --muted: 240 4% 14%;
+  --muted-foreground: 240 5% 65%;
+  --accent: 0 74% 35%;
+  --accent-foreground: 0 0% 98%;
+  --destructive: 0 63% 31%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 0 0% 100% / 0.08;
+  --input: 0 0% 100% / 0.12;
+  --ring: 0 84% 60%;
+  --radius: 0.8rem;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-height: 100%;
+  scroll-behavior: smooth;
+  background: #09090b;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply min-h-screen bg-background text-foreground antialiased;
+    font-family: var(--font-inter), sans-serif;
+    background-image:
+      radial-gradient(ellipse at 50% -20%, rgba(239, 68, 68, 0.15), transparent 42%),
+      linear-gradient(180deg, #09090b 0%, #0c0a0d 100%);
+  }
+
+  a {
+    @apply transition-colors;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display), var(--font-inter), sans-serif;
+  }
+}
+
+@layer components {
+  .gradient-text {
+    @apply bg-gradient-to-r from-red-400 via-red-500 to-orange-500 bg-clip-text text-transparent;
+  }
+
+  .gradient-red {
+    @apply bg-gradient-to-br from-red-500 via-red-600 to-red-900;
+  }
+
+  .glass {
+    @apply border border-white/[0.08] bg-white/[0.035] backdrop-blur-xl;
+  }
+
+  .glow-red {
+    box-shadow: 0 12px 50px rgba(239, 68, 68, 0.18);
+  }
+
+  .glass-panel {
+    @apply glass rounded-2xl shadow-glow;
+  }
+}
