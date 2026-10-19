@@ -1,22 +1,33 @@
 "use client";
 
-import { ArrowLeftRight } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useCurrency } from "./currency-provider";
 
-export function CurrencyToggle() {
-  const { currency, toggleCurrency } = useCurrency();
+export function CurrencyToggle({ compact = false }: { compact?: boolean }) {
+  const { currency, setCurrency } = useCurrency();
   return (
-    <Button
-      type="button"
-      variant="outline"
-      size="sm"
-      className="rounded-full border-white/10 bg-white/[0.03]"
-      onClick={toggleCurrency}
-      aria-label={`Switch display currency from ${currency}`}
+    <div
+      role="group"
+      aria-label="Display currency"
+      className="inline-flex h-9 items-center rounded-full border border-white/10 bg-white/[0.035] p-0.5"
     >
-      <ArrowLeftRight aria-hidden="true" className="h-3.5 w-3.5" />
-      {currency}
-    </Button>
+      {(["INR", "USD"] as const).map((option) => (
+        <Button
+          key={option}
+          type="button"
+          variant="ghost"
+          size="sm"
+          aria-pressed={currency === option}
+          onClick={() => setCurrency(option)}
+          className={cn(
+            "h-8 rounded-full px-2.5 text-xs hover:bg-white/5",
+            currency === option && "bg-red-500/15 text-red-200 hover:bg-red-500/20",
+          )}
+        >
+          {compact ? option === "INR" ? "₹" : "$" : option}
+        </Button>
+      ))}
+    </div>
   );
 }

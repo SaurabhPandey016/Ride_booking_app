@@ -2,8 +2,6 @@ import { ArrowRight, CarFront, Clock3, ShieldCheck, Sparkles } from "lucide-reac
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CurrencyToggle } from "@/components/shared/currency-toggle";
-import { BrandMark } from "@/components/layout/brand-mark";
 import { FeatureCard } from "@/components/landing/feature-card";
 
 const stats = [
@@ -30,22 +28,7 @@ const features = [
 export default function HomePage() {
   return (
     <main className="mx-auto flex min-h-screen max-w-7xl flex-col px-5 pb-16 pt-6 sm:px-8 lg:px-10">
-      <header className="glass mb-12 flex items-center justify-between rounded-full px-4 py-3">
-        <BrandMark />
-        <nav className="hidden items-center gap-8 text-sm text-zinc-300 md:flex">
-          <a href="#features" className="hover:text-white">Features</a>
-          <a href="#security" className="hover:text-white">Security</a>
-          <a href="#pricing" className="hover:text-white">Pricing</a>
-        </nav>
-        <div className="flex items-center gap-2">
-          <CurrencyToggle />
-          <Button asChild size="sm" className="rounded-full px-5">
-            <Link href="/auth">Get started <ArrowRight aria-hidden="true" className="ml-1 h-4 w-4" /></Link>
-          </Button>
-        </div>
-      </header>
-
-      <section className="grid items-center gap-8 py-8 lg:grid-cols-[1.2fr_0.8fr] lg:py-16">
+      <section className="grid items-center gap-8 py-10 lg:grid-cols-[1.2fr_0.8fr] lg:py-16">
         <div>
           <Badge variant="outline" className="mb-5 gap-2 rounded-full border-red-500/30 bg-red-500/10 px-3 py-1 text-red-200">
             <Sparkles aria-hidden="true" className="h-3.5 w-3.5" /> Smart mobility reimagined
@@ -124,11 +107,6 @@ export default function HomePage() {
           ))}
         </div>
       </section>
-
-      <footer className="mt-auto flex flex-col justify-between gap-3 border-t border-white/[0.08] pt-6 text-sm text-zinc-500 sm:flex-row">
-        <span>© {new Date().getFullYear()} RideX. Move with confidence.</span>
-        <span className="flex items-center gap-2"><ShieldCheck aria-hidden="true" className="h-4 w-4 text-red-400" /> Every ride starts with trust.</span>
-      </footer>
     </main>
   );
 }

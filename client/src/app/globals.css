@@ -82,3 +82,34 @@ html {
     @apply glass rounded-2xl shadow-glow;
   }
 }
+
+@keyframes gentle-heartbeat {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  12%,
+  28% {
+    transform: scale(1.16);
+  }
+  20%,
+  36% {
+    transform: scale(1);
+  }
+}
+
+.heartbeat {
+  display: inline-block;
+  animation: gentle-heartbeat 2.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
