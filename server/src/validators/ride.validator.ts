@@ -1,4 +1,4 @@
-import { VehicleType } from "@prisma/client";
+import { RideStatus, VehicleType } from "@prisma/client";
 import { z } from "zod";
 import { routeSchema } from "./maps.validator.js";
 
@@ -15,7 +15,13 @@ export const rideIdParamsSchema = z.object({
 export const historyQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
-});
+  status: z.nativeEnum(RideStatus).optional(),
+  from: z.coerce.date().optional(),
+  to: z.coerce.date().optional(),
+}).refine(
+  (query) => query.from === undefined || query.to === undefined || query.from <= query.to,
+  { message: "'from' must be on or before 'to'", path: ["from"] },
+);
 
 export const cancelRideSchema = z.object({
   reason: z.string().trim().min(1).max(500),

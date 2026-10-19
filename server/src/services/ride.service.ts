@@ -79,6 +79,26 @@ const rideSelect = {
   },
 } satisfies Prisma.RideSelect;
 
+const rideHistorySelect = {
+  ...rideSelect,
+  payment: {
+    select: {
+      receiptNumber: true,
+      currency: true,
+      amountMinor: true,
+      status: true,
+      paidAt: true,
+    },
+  },
+  review: {
+    select: {
+      rating: true,
+      comment: true,
+      createdAt: true,
+    },
+  },
+} satisfies Prisma.RideSelect;
+
 type RideDetails = Prisma.RideGetPayload<{ select: typeof rideSelect }>;
 
 const toRideEvent = (ride: RideDetails): RideEventPayload => ({
@@ -231,16 +251,27 @@ export const getRideHistory = async (
   role: Role,
   page: number,
   limit: number,
+  filters: { status?: RideStatus; from?: Date; to?: Date } = {},
 ) => {
-  const where =
-    role === Role.RIDER ? { riderId: userId } : { driverId: userId };
+  const where: Prisma.RideWhereInput = {
+    ...(role === Role.RIDER ? { riderId: userId } : { driverId: userId }),
+    ...(filters.status ? { status: filters.status } : {}),
+    ...(filters.from || filters.to
+      ? {
+          requestedAt: {
+            ...(filters.from ? { gte: filters.from } : {}),
+            ...(filters.to ? { lte: filters.to } : {}),
+          },
+        }
+      : {}),
+  };
   const [rides, total] = await prisma.$transaction([
     prisma.ride.findMany({
       where,
       orderBy: { requestedAt: "desc" },
       skip: (page - 1) * limit,
       take: limit,
-      select: rideSelect,
+      select: rideHistorySelect,
     }),
     prisma.ride.count({ where }),
   ]);

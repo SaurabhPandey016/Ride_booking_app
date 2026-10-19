@@ -593,6 +593,120 @@ const runSmoke = async () => {
     requireStatus(paymentStatusResponse, 200, "Get ride payment");
     console.info("PASS rider can retrieve payment status");
 
+    const driverMeResponse = await fetch(`${baseUrl}/me`, {
+      headers: { cookie: driverCookie },
+    });
+    requireStatus(driverMeResponse, 200, "Get driver id");
+    const driverMe = (await driverMeResponse.json()) as {
+      data: { user: { id: string } };
+    };
+    const driverId = driverMe.data.user.id;
+
+    const reviewResponse = await fetch(
+      `http://127.0.0.1:${address.port}/api/reviews`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json", cookie: riderCookie },
+        body: JSON.stringify({
+          rideId,
+          rating: 5,
+          comment: "Great ride",
+        }),
+      },
+    );
+    requireStatus(reviewResponse, 201, "Create ride review");
+    console.info("PASS rider reviewed completed paid ride");
+
+    const duplicateReviewResponse = await fetch(
+      `http://127.0.0.1:${address.port}/api/reviews`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json", cookie: riderCookie },
+        body: JSON.stringify({ rideId, rating: 4 }),
+      },
+    );
+    requireStatus(duplicateReviewResponse, 409, "Reject duplicate ride review");
+    console.info("PASS duplicate ride review rejected with HTTP 409");
+
+    const driverReviewsResponse = await fetch(
+      `http://127.0.0.1:${address.port}/api/reviews/driver/${driverId}?page=1&limit=10`,
+      { headers: { cookie: riderCookie } },
+    );
+    requireStatus(driverReviewsResponse, 200, "Get driver reviews");
+    const driverReviews = (await driverReviewsResponse.json()) as {
+      data: { reviews: Array<{ rideId: string; rating: number }> };
+    };
+    if (!driverReviews.data.reviews.some((review) => review.rideId === rideId && review.rating === 5)) {
+      throw new Error("Driver review list did not include the newly created review");
+    }
+    console.info("PASS authenticated user can fetch paginated driver reviews");
+
+    const rideReviewResponse = await fetch(
+      `http://127.0.0.1:${address.port}/api/reviews/ride/${rideId}`,
+      { headers: { cookie: riderCookie } },
+    );
+    requireStatus(rideReviewResponse, 200, "Get review by ride");
+    console.info("PASS ride participant can fetch the ride review");
+
+    const dateFrom = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const dateTo = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    const historyResponse = await fetch(
+      `http://127.0.0.1:${address.port}/api/rides/history?status=COMPLETED&from=${encodeURIComponent(dateFrom)}&to=${encodeURIComponent(dateTo)}`,
+      { headers: { cookie: riderCookie } },
+    );
+    requireStatus(historyResponse, 200, "Get filtered ride history");
+    const history = (await historyResponse.json()) as {
+      data: {
+        rides: Array<{
+          id: string;
+          payment: { status: string } | null;
+          review: { rating: number } | null;
+        }>;
+      };
+    };
+    const historyRide = history.data.rides.find((ride) => ride.id === rideId);
+    if (
+      !historyRide ||
+      historyRide.payment?.status !== "SUCCEEDED" ||
+      historyRide.review?.rating !== 5
+    ) {
+      throw new Error("Filtered history did not include payment and review summaries");
+    }
+    console.info("PASS filtered ride history includes payment and review summaries");
+
+    const receiptResponse = await fetch(
+      `http://127.0.0.1:${address.port}/api/receipts/${rideId}`,
+      { headers: { cookie: riderCookie } },
+    );
+    requireStatus(receiptResponse, 200, "Get ride receipt");
+    const receiptResult = (await receiptResponse.json()) as {
+      data: {
+        receipt: {
+          receiptNumber: string;
+          fareBreakdown: { totalPaise: number; taxesPaise: number };
+          payment: { currency: string; status: string; totalMinor: number };
+        };
+      };
+    };
+    if (
+      !receiptResult.data.receipt.receiptNumber ||
+      receiptResult.data.receipt.fareBreakdown.totalPaise !== createdRide.data.ride.farePaise ||
+      receiptResult.data.receipt.payment.status !== "SUCCEEDED"
+    ) {
+      throw new Error("Receipt is missing expected payment or fare details");
+    }
+    console.info(
+      "Receipt result:",
+      JSON.stringify({
+        receiptNumber: receiptResult.data.receipt.receiptNumber,
+        fareTotalPaise: receiptResult.data.receipt.fareBreakdown.totalPaise,
+        taxesPaise: receiptResult.data.receipt.fareBreakdown.taxesPaise,
+        paidCurrency: receiptResult.data.receipt.payment.currency,
+        totalMinor: receiptResult.data.receipt.payment.totalMinor,
+        paymentStatus: receiptResult.data.receipt.payment.status,
+      }),
+    );
+
     console.info("Socket events received:", JSON.stringify(socketEvents));
   } finally {
     for (const socket of sockets) {

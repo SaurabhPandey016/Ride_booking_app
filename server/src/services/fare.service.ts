@@ -36,6 +36,27 @@ const pricing: Record<VehicleType, VehiclePricing> = {
   },
 };
 
+export const calculateFareBreakdown = (
+  vehicleType: VehicleType,
+  distanceKm: number,
+  durationMin: number,
+) => {
+  const quote = calculateFare(vehicleType, distanceKm, durationMin);
+  const vehiclePricing = pricing[vehicleType];
+  const distancePaise = Math.round(vehiclePricing.perKmPaise * distanceKm);
+  const timePaise = Math.round(vehiclePricing.perMinutePaise * durationMin);
+  const subtotalPaise = vehiclePricing.basePaise + distancePaise + timePaise;
+
+  return {
+    basePaise: vehiclePricing.basePaise,
+    distancePaise,
+    timePaise,
+    adjustmentPaise: quote.farePaise - subtotalPaise,
+    taxesPaise: 0,
+    totalPaise: quote.farePaise,
+  };
+};
+
 export const toMinor = (amount: number, currency: "INR" | "USD" = "INR"): number => {
   if (!Number.isFinite(amount) || amount < 0) {
     throw new AppError(400, "Amount must be a non-negative finite number");

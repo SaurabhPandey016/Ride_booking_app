@@ -59,7 +59,13 @@ export const getRideHistory = async (req: Request, res: Response) => {
     throw new AppError(400, "Validation failed", parsed.error.flatten().fieldErrors);
   }
 
-  const history = await getRideHistoryService(user.id, user.role, parsed.data.page, parsed.data.limit);
+  const history = await getRideHistoryService(
+    user.id,
+    user.role,
+    parsed.data.page,
+    parsed.data.limit,
+    { status: parsed.data.status, from: parsed.data.from, to: parsed.data.to },
+  );
   res.status(200).json({ success: true, message: "Ride history retrieved", data: history });
 };
 
