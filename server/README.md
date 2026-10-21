@@ -53,7 +53,7 @@ Put server variables in `server/.env`. The root `.env.example` is the server tem
 | `STRIPE_WEBHOOK_SECRET` | Empty | Required in production for signed Stripe webhooks |
 
 The client also requires `NEXT_PUBLIC_API_URL` to target this server; see [client environment setup](../client/README.md#environment).
-In production, the server validates required values at startup, including an exact HTTPS `CLIENT_URL`, both database URLs, a strong JWT secret, contactable Nominatim User-Agent, and Stripe test-mode keys. Keep the browser and API on HTTPS subdomains of the same domain for the `SameSite=Lax` auth cookie.
+In production, the server validates required values at startup, including an exact HTTPS `CLIENT_URL`, both database URLs, a random JWT secret of at least 32 characters, contactable Nominatim User-Agent, and Stripe test-mode keys. If startup reports a short JWT secret, replace the `JWT_SECRET` value in Render's Environment settings with a newly generated random value of at least 32 characters and redeploy; do not weaken this check. Changing the key invalidates existing login cookies. Keep the browser and API on HTTPS subdomains of the same domain for the `SameSite=Lax` auth cookie.
 
 ## Scripts
 

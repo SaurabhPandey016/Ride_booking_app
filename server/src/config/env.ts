@@ -35,7 +35,9 @@ if (nodeEnv === 'production') {
   }
 
   if (jwtSecret.length < 32) {
-    missingValues.push('JWT_SECRET (must contain at least 32 characters)');
+    missingValues.push(
+      'JWT_SECRET (set a new random value of at least 32 characters in Render; changing it signs out existing users)',
+    );
   }
   if (!validClientOrigin) {
     missingValues.push('CLIENT_URL (must be an HTTPS origin without a path)');

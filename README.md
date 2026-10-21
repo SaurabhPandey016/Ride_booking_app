@@ -181,6 +181,7 @@ Copy the root `.env.example` to `server/.env` and `client/.env.example` to `clie
 | Variable | Required | Default / purpose |
 | --- | --- | --- |
 | `NEXT_PUBLIC_API_URL` | Yes on Vercel | `http://localhost:4000/api` is used only when developing locally; Socket.io removes the `/api` suffix. |
+| `NEXT_PUBLIC_SOCKET_URL` | Optional | One socket origin only. Locally `http://localhost:10000`; on Vercel `https://api.your-domain.com`. Never comma-separate deployment environments. |
 | `NEXT_PUBLIC_USD_INR_RATE` | No | `83`; client-side currency formatting conversion |
 | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Yes for card checkout | Stripe publishable test key, such as a `pk_test_...` key |
 
@@ -338,7 +339,7 @@ Use `migrate deploy`, never `migrate dev`, against production. For later schema 
 3. Set the build command to:
 
    ```text
-   npm ci && npx prisma generate --schema=server/prisma/schema.prisma && npm run build --workspace @ridex/server
+   npm ci --include=dev && npx prisma generate --schema=server/prisma/schema.prisma && npm run build --workspace @ridex/server
    ```
 
 4. Set the start command to:
@@ -364,6 +365,19 @@ Use `migrate deploy`, never `migrate dev`, against production. For later schema 
    | `STRIPE_WEBHOOK_SECRET` | Test-mode webhook signing secret (`whsec_...`) |
 
    Render supplies `PORT`; do not hard-code it. The server fails startup if required production settings are missing or unsafe.
+On Windows PowerShell, generate a strong value locally without printing it in the terminal:
+
+   ```powershell
+   $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+   $bytes = [byte[]]::new(48)
+   $rng.GetBytes($bytes)
+   $jwtSecret = [Convert]::ToBase64String($bytes)
+   Set-Clipboard -Value $jwtSecret
+   $rng.Dispose()
+   Write-Output "Generated a 64-character JWT secret and copied it to the clipboard."
+   ```
+
+   In Render, open the service's **Environment** settings, edit the existing `JWT_SECRET` value (do not create a second variable), paste the generated value, save, and redeploy. Do not use a short memorable password. Changing this key invalidates existing login cookies, so users will need to sign in again. Never send or commit the generated secret.
 7. Create a test-mode webhook in Stripe pointing to `https://api.your-domain.com/api/payments/webhook`, subscribe to `payment_intent.succeeded` and `payment_intent.payment_failed`, and copy its signing secret to Render. Keep the Stripe secret and publishable keys in the same mode.
 8. Deploy and inspect Render logs. Verify `https://api.your-domain.com/healthz` returns `{"status":"ok"}` and `/api/health` returns HTTP 200 with `database: "available"`.
 
@@ -377,7 +391,8 @@ Render's free web service can sleep after inactivity. The landing page now reque
 
    | Variable | Value |
    | --- | --- |
-   | `NEXT_PUBLIC_API_URL` | `https://api.your-domain.com/api` |
+   | `NEXT_PUBLIC_API_URL` | `https://api.your-domain.com/api` (one URL only) |
+   | `NEXT_PUBLIC_SOCKET_URL` | `https://api.your-domain.com` (one origin only; optional if derived from the API URL) |
    | `NEXT_PUBLIC_USD_INR_RATE` | Same value as Render's `USD_INR_RATE` |
    | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Stripe test-mode `pk_test_...` key |
 

@@ -40,6 +40,7 @@ Create `client/.env.local`:
 | Variable | Default | Description |
 | --- | --- | --- |
 | `NEXT_PUBLIC_API_URL` | Required on Vercel; local fallback `http://localhost:4000/api` | Express REST base URL. The Socket.io client derives the server origin by removing `/api`. |
+| `NEXT_PUBLIC_SOCKET_URL` | Optional; derived from `NEXT_PUBLIC_API_URL` | One Socket.io server origin, e.g. `http://localhost:4000` locally or `https://api.example.com` in production. Do not comma-separate local and production URLs; configure each environment separately. |
 | `NEXT_PUBLIC_USD_INR_RATE` | `83` | Rate used by client fare formatting. Keep aligned with server `USD_INR_RATE`. |
 | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Required for card checkout | Stripe test-mode publishable key (`pk_test_...`); must match the server test-mode secret key. |
 
@@ -96,7 +97,7 @@ Shared visual utilities include `.gradient-text`, `.gradient-red`, `.glass`, and
 - `shared/auth-provider.tsx` checks `/auth/me` on app load. Protected pages use `ProtectedRoute`; auth state is held in the Zustand store.
 - `shared/currency-provider.tsx` keeps the INR/USD display choice in local storage. Server fare/payment amounts remain server-authoritative.
 - `lib/api.ts` configures Axios with `withCredentials: true` and normalizes API errors.
-- `lib/socket.ts` creates a cookie-authenticated Socket.io connection from `NEXT_PUBLIC_API_URL`.
+- `lib/socket.ts` creates a cookie-authenticated Socket.io connection using `NEXT_PUBLIC_SOCKET_URL` or the origin derived from `NEXT_PUBLIC_API_URL`. URL settings reject comma-separated values.
 - The landing page probes `/health` immediately. Its service status distinguishes an API cold start from a database readiness failure and retries automatically; a paused Supabase project may still need manual resume.
 
 ## Maps and live rides

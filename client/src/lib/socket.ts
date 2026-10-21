@@ -1,7 +1,7 @@
 "use client";
 
 import { io, type Socket } from "socket.io-client";
-import { apiBaseUrl } from "./api";
+import { socketBaseUrl } from "./api";
 
 let rideSocket: Socket | null = null;
 
@@ -10,7 +10,7 @@ export const getRideSocket = (): Socket => {
     throw new Error("RideX sockets can only be created in the browser");
   }
   if (!rideSocket) {
-    rideSocket = io(apiBaseUrl.replace(/\/api\/?$/, ""), {
+    rideSocket = io(socketBaseUrl, {
       autoConnect: false,
       withCredentials: true,
     });
