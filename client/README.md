@@ -39,11 +39,13 @@ Create `client/.env.local`:
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `NEXT_PUBLIC_API_URL` | `http://localhost:4000/api` | Express REST base URL. The Socket.io client derives the server origin by removing `/api`. |
+| `NEXT_PUBLIC_API_URL` | Required on Vercel; local fallback `http://localhost:4000/api` | Express REST base URL. The Socket.io client derives the server origin by removing `/api`. |
 | `NEXT_PUBLIC_USD_INR_RATE` | `83` | Rate used by client fare formatting. Keep aligned with server `USD_INR_RATE`. |
-| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | — | Stripe publishable key. Use a `pk_test_...` key for local test-mode card checkout. |
+| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Required for card checkout | Stripe test-mode publishable key (`pk_test_...`); must match the server test-mode secret key. |
 
-The API uses cookie credentials; configure the server's `CLIENT_URL` to the exact client origin. Public `NEXT_PUBLIC_*` values are included in the browser bundle and must never contain secrets.
+The API uses cookie credentials; configure the server's `CLIENT_URL` to the exact client origin. In production, `NEXT_PUBLIC_API_URL` must use HTTPS and be set before the Vercel build. Public `NEXT_PUBLIC_*` values are included in the browser bundle and must never contain secrets. The cookie uses `SameSite=Lax`, so use client/API HTTPS subdomains under the same registrable domain (for example `app.example.com` and `api.example.com`); provider-default Vercel and Render domains are cross-site for this cookie setup.
+
+For Stripe test checkout, use a `pk_test_...` key from the same Stripe account as the server's `sk_test_...` key. Put the publishable key in this client environment and the secret key only in `server/.env` or the server host's secret settings. After changing a client key, restart Next.js locally or rebuild/redeploy Vercel; never send secret keys through chat or commit them.
 
 ## Scripts
 
@@ -95,11 +97,12 @@ Shared visual utilities include `.gradient-text`, `.gradient-red`, `.glass`, and
 - `shared/currency-provider.tsx` keeps the INR/USD display choice in local storage. Server fare/payment amounts remain server-authoritative.
 - `lib/api.ts` configures Axios with `withCredentials: true` and normalizes API errors.
 - `lib/socket.ts` creates a cookie-authenticated Socket.io connection from `NEXT_PUBLIC_API_URL`.
+- The landing page probes `/health` immediately. Its service status distinguishes an API cold start from a database readiness failure and retries automatically; a paused Supabase project may still need manual resume.
 
 ## Maps and live rides
 
-The Leaflet booking map is dynamically imported with server-side rendering disabled. It uses OpenStreetMap tiles and attribution, custom pickup/drop/driver markers, and route geometry returned from the API. Search, reverse geocoding, and route requests go through the Express API; the browser does not call Nominatim or OSRM directly.
+The Leaflet booking map is dynamically imported with server-side rendering disabled. It uses OpenStreetMap tiles and attribution, custom pickup/drop/driver markers, and route geometry returned from the API. Search, reverse geocoding, and route requests go through the Express API; the browser does not call Nominatim or OSRM directly. The current-location control samples fresh high-accuracy browser fixes and chooses the best reported accuracy; it keeps those device coordinates for the pickup rather than substituting the nearest reverse-geocoded address. Laptop location may still be estimated from Wi-Fi/network data; the UI reports coarse accuracy and lets riders drag the pickup pin or search for a known address such as Bela, Satna.
 
-Ride pages join the participant-authorized `ride:{id}` socket room and listen for ride status and driver location events. The server validates room membership and throttles driver location updates. Stripe Elements is loaded dynamically only when the payment flow is active.
+Ride pages join the participant-authorized `ride:{id}` socket room and listen for ride status and driver location events. The server validates room membership and throttles driver location updates. The driver dashboard refreshes requests on socket connection/reconnection and every 10 seconds as a fallback; only matching vehicle requests within 15 km are shown. Stripe Elements is loaded dynamically only when the payment flow is active.
 
 For API endpoints and socket event payloads, see the [root README](../README.md#api-overview) and [server README](../server/README.md).

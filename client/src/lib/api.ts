@@ -10,8 +10,23 @@ type ApiErrorBody = {
   errors?: unknown;
 };
 
+const configuredApiUrl = process.env.NEXT_PUBLIC_API_URL?.trim() || undefined;
+const resolvedApiUrl =
+  configuredApiUrl ??
+  (process.env.NODE_ENV === "development" ? "http://localhost:4000/api" : undefined);
+
+if (!resolvedApiUrl) {
+  throw new Error("NEXT_PUBLIC_API_URL must be configured for production builds.");
+}
+
+export const apiBaseUrl: string = resolvedApiUrl;
+
+if (process.env.VERCEL === "1" && !apiBaseUrl.startsWith("https://")) {
+  throw new Error("NEXT_PUBLIC_API_URL must use HTTPS for Vercel deployments.");
+}
+
 export const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api",
+  baseURL: apiBaseUrl,
   withCredentials: true,
   headers: { "Content-Type": "application/json" },
 });

@@ -64,6 +64,51 @@ type EstimateResponse = ApiResponse<{
 type ActiveRideResponse = ApiResponse<{ ride: { id: string; status: string } | null }>;
 type CreateRideResponse = ApiResponse<{ ride: { id: string } }>;
 
+const readBestCurrentPosition = (
+  geolocation: Geolocation,
+): Promise<GeolocationPosition> =>
+  new Promise((resolve, reject) => {
+    let watchId: number | undefined;
+    let bestPosition: GeolocationPosition | null = null;
+    let settled = false;
+
+    const finish = (position?: GeolocationPosition, error?: GeolocationPositionError) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timer);
+      if (watchId !== undefined) geolocation.clearWatch(watchId);
+      if (position) resolve(position);
+      else reject(error ?? new Error("Your device did not return a location."));
+    };
+
+    const timer = window.setTimeout(
+      () => finish(bestPosition ?? undefined),
+      8000,
+    );
+
+    try {
+      watchId = geolocation.watchPosition(
+        (position) => {
+          if (
+            !bestPosition ||
+            position.coords.accuracy < bestPosition.coords.accuracy
+          ) {
+            bestPosition = position;
+          }
+
+          if (position.coords.accuracy <= 25) {
+            finish(position);
+          }
+        },
+        (error) => finish(bestPosition ?? undefined, error),
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 12000 },
+      );
+    } catch (error: unknown) {
+      window.clearTimeout(timer);
+      reject(error);
+    }
+  });
+
 const vehicleOptions: Array<{
   type: FareQuote["vehicleType"];
   label: string;
@@ -94,6 +139,7 @@ export function BookingExperience({ initialPickup, initialDrop }: BookingExperie
   const [estimateError, setEstimateError] = useState<string | null>(null);
   const [estimateRetry, setEstimateRetry] = useState(0);
   const [locationLoading, setLocationLoading] = useState(false);
+  const [locationAccuracy, setLocationAccuracy] = useState<number | null>(null);
   const [reverseError, setReverseError] = useState<{
     lat: number;
     lng: number;
@@ -177,6 +223,7 @@ export function BookingExperience({ initialPickup, initialDrop }: BookingExperie
 
   const choosePlace = (target: "pickup" | "drop", place: Place) => {
     if (target === "pickup") {
+      setLocationAccuracy(null);
       setPickup(place);
       setPickupQuery(place.label);
       setMapTarget("drop");
@@ -188,6 +235,7 @@ export function BookingExperience({ initialPickup, initialDrop }: BookingExperie
 
   const editPlace = (target: "pickup" | "drop", query: string) => {
     if (target === "pickup") {
+      setLocationAccuracy(null);
       setPickup(null);
       setPickupQuery(query);
       setMapTarget("pickup");
@@ -199,6 +247,7 @@ export function BookingExperience({ initialPickup, initialDrop }: BookingExperie
   };
 
   const swapLocations = () => {
+    setLocationAccuracy(null);
     setPickup(drop);
     setDrop(pickup);
     setPickupQuery(drop?.label ?? dropQuery);
@@ -211,7 +260,7 @@ export function BookingExperience({ initialPickup, initialDrop }: BookingExperie
       const response = await api.get<ReverseResponse>("/maps/reverse", {
         params: { lat, lng },
       });
-      choosePlace(target, response.data.data.place);
+      choosePlace(target, { ...response.data.data.place, lat, lng });
     } catch (error: unknown) {
       const message = normalizeApiError(error).message || "We couldn’t find an address for that spot.";
       setReverseError({ lat, lng, target, message });
@@ -230,32 +279,39 @@ export function BookingExperience({ initialPickup, initialDrop }: BookingExperie
     }
 
     setLocationLoading(true);
-    navigator.geolocation.getCurrentPosition(
-      ({ coords }) => {
-        void api
-          .get<ReverseResponse>("/maps/reverse", {
-            params: { lat: coords.latitude, lng: coords.longitude },
-          })
-          .then((response) => {
-            setReverseError(null);
-            choosePlace("pickup", response.data.data.place);
-            toast.success("Pickup set to your current location.");
-          })
-          .catch((error: unknown) => {
-            toast.error(normalizeApiError(error).message || "We couldn’t look up your current location.");
-          })
-          .finally(() => setLocationLoading(false));
-      },
-      (error) => {
-        setLocationLoading(false);
+    void readBestCurrentPosition(navigator.geolocation)
+      .then(async ({ coords }) => {
+        const response = await api.get<ReverseResponse>("/maps/reverse", {
+          params: { lat: coords.latitude, lng: coords.longitude },
+        });
+        setReverseError(null);
+        setPickup({
+          ...response.data.data.place,
+          lat: coords.latitude,
+          lng: coords.longitude,
+        });
+        setPickupQuery(`Current location (near ${response.data.data.place.label})`);
+        setMapTarget("drop");
+        setLocationAccuracy(coords.accuracy);
+        const accuracyMessage =
+          coords.accuracy > 500
+            ? `Your browser reports a broad location estimate (±${Math.round(coords.accuracy)} m). Laptop locations can be estimated from nearby Wi-Fi or your network. Drag the pickup pin or search Bela, Satna to correct it.`
+            : `Pickup pin set from your device location (reported accuracy ±${Math.round(coords.accuracy)} m). The address is the nearest mapped address; drag the pin to fine-tune it.`;
+        toast.info(accuracyMessage, { duration: 9000 });
+      })
+      .catch((error: unknown) => {
+        const permissionDenied =
+          typeof error === "object" &&
+          error !== null &&
+          "code" in error &&
+          error.code === 1;
         toast.error(
-          error.code === error.PERMISSION_DENIED
+          permissionDenied
             ? "Allow location access in your browser to use your current location."
-            : "We couldn’t get your current location. Please try again.",
+            : normalizeApiError(error).message || "We couldn’t get your current location. Please try again.",
         );
-      },
-      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 30_000 },
-    );
+      })
+      .finally(() => setLocationLoading(false));
   };
 
   const requestRide = async () => {
@@ -509,6 +565,8 @@ export function BookingExperience({ initialPickup, initialDrop }: BookingExperie
             onMapSelect={handleMapSelect}
             onUseMyLocation={useMyLocation}
             locationLoading={locationLoading}
+            locationAccuracy={locationAccuracy}
+            onPickupMove={(lat, lng) => void reverseGeocode(lat, lng, "pickup")}
           />
           <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 z-[400] h-16 bg-gradient-to-t from-black/20 to-transparent" />
         </section>

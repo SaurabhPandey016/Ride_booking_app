@@ -397,16 +397,19 @@ export function DriverDashboard() {
       void loadRequests(true);
     };
     const onSocketError = (event: { message: string }) => toast.error(event.message);
+    const onSocketConnect = () => {
+      void loadRequests(true);
+    };
 
+    socket.on("connect", onSocketConnect);
     socket.on("ride:new", onRideNew);
     socket.on("ride:accepted", onRideUpdate);
     socket.on("ride:cancelled", onRideUpdate);
     socket.on("ride:status", onRideUpdate);
     socket.on("socket:error", onSocketError);
     socket.connect();
-    void loadRequests(true);
 
-    const refreshTimer = window.setInterval(() => void loadRequests(true), 20000);
+    const refreshTimer = window.setInterval(() => void loadRequests(true), 10000);
     const watchId = navigator.geolocation?.watchPosition(
       ({ coords }) => {
         lastLocationRef.current = { lat: coords.latitude, lng: coords.longitude };
@@ -425,6 +428,7 @@ export function DriverDashboard() {
       window.clearInterval(refreshTimer);
       window.clearInterval(broadcastTimer);
       if (watchId !== undefined) navigator.geolocation.clearWatch(watchId);
+      socket.off("connect", onSocketConnect);
       socket.off("ride:new", onRideNew);
       socket.off("ride:accepted", onRideUpdate);
       socket.off("ride:cancelled", onRideUpdate);
@@ -617,7 +621,9 @@ export function DriverDashboard() {
             <div>
               <CardTitle>Ride requests</CardTitle>
               <CardDescription className="mt-2">
-                {profile?.isOnline ? "New requests within 15 km appear here." : "Go online to see requests near you."}
+                {profile?.isOnline
+                  ? "Matching vehicle requests with pickup locations within 15 km of your current location appear here."
+                  : "Go online to see requests near you."}
               </CardDescription>
             </div>
             <Button variant="outline" size="sm" onClick={() => void loadRequests()} disabled={!profile?.isOnline || refreshing}>
@@ -634,7 +640,11 @@ export function DriverDashboard() {
                 <Button className="mt-3" size="sm" variant="outline" onClick={() => void loadRequests()}><RefreshCw aria-hidden="true" className="h-4 w-4" />Try again</Button>
               </div>
             ) : requests.length === 0 ? (
-              <EmptyRequests icon={<MapPin aria-hidden="true" className="h-6 w-6" />} title="No requests nearby" description="We’ll let you know as soon as a ride is available." />
+              <EmptyRequests
+                icon={<MapPin aria-hidden="true" className="h-6 w-6" />}
+                title="No requests nearby"
+                description="No open rides currently match your vehicle within 15 km. Confirm your location and vehicle type, then refresh."
+              />
             ) : (
               requests.map((ride) => (
                 <RequestCard

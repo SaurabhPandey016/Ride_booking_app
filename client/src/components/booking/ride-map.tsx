@@ -22,8 +22,10 @@ type RideMapProps = {
   target: "pickup" | "drop";
   onTargetChange: (target: "pickup" | "drop") => void;
   onMapSelect: (lat: number, lng: number) => void;
+  onPickupMove: (lat: number, lng: number) => void;
   onUseMyLocation: () => void;
   locationLoading: boolean;
+  locationAccuracy: number | null;
 };
 
 const pickupIcon = L.divIcon({
@@ -105,8 +107,10 @@ export default function RideMap({
   target,
   onTargetChange,
   onMapSelect,
+  onPickupMove,
   onUseMyLocation,
   locationLoading,
+  locationAccuracy,
 }: RideMapProps) {
   const routePositions = geometry?.map(([lng, lat]) => [lat, lng] as [number, number]);
 
@@ -138,7 +142,21 @@ export default function RideMap({
             />
           </>
         )}
-        {pickup && <Marker position={[pickup.lat, pickup.lng]} icon={pickupIcon} bubblingMouseEvents={false} />}
+        {pickup && (
+          <Marker
+            position={[pickup.lat, pickup.lng]}
+            icon={pickupIcon}
+            draggable
+            bubblingMouseEvents={false}
+            eventHandlers={{
+              dragend: (event) => {
+                const marker = event.target as L.Marker;
+                const location = marker.getLatLng();
+                onPickupMove(location.lat, location.lng);
+              },
+            }}
+          />
+        )}
         {drop && <Marker position={[drop.lat, drop.lng]} icon={dropIcon} bubblingMouseEvents={false} />}
       </MapContainer>
 
@@ -175,6 +193,27 @@ export default function RideMap({
           Use my location
         </button>
       </div>
+
+      {locationAccuracy !== null && (
+        <div
+          className={`absolute right-3 top-14 z-[400] max-w-[min(20rem,calc(100%-1.5rem))] rounded-lg border bg-zinc-950/90 px-3 py-2 text-[11px] leading-4 shadow-lg backdrop-blur-xl sm:right-5 sm:top-[4.5rem] ${
+            locationAccuracy > 500
+              ? "border-amber-400/25 text-amber-100"
+              : "border-emerald-400/20 text-emerald-100"
+          }`}
+          role="status"
+        >
+          {locationAccuracy > 500
+            ? `Your device reports only an approximate location (±${Math.round(locationAccuracy)} m). Drag the green pickup pin or search Bela, Satna, Madhya Pradesh.`
+            : `Device location accuracy: ±${Math.round(locationAccuracy)} m. The label is the nearest mapped address; drag the green pin to adjust.`}
+        </div>
+      )}
+
+      {pickup && (
+        <div className="pointer-events-none absolute bottom-4 left-3 z-[400] rounded-lg border border-white/10 bg-zinc-950/85 px-3 py-2 text-[11px] text-zinc-200 shadow-lg backdrop-blur-xl sm:left-5">
+          Drag the green pickup pin to fine-tune your pickup.
+        </div>
+      )}
 
       {!pickup && !drop && (
         <div className="pointer-events-none absolute inset-x-0 bottom-4 z-[400] flex justify-center px-3">

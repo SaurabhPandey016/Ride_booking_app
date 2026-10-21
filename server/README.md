@@ -40,19 +40,20 @@ Put server variables in `server/.env`. The root `.env.example` is the server tem
 | --- | --- | --- |
 | `PORT` | `4000` | HTTP and Socket.io listener port |
 | `NODE_ENV` | `development` | Controls production-only secure cookie behavior |
-| `JWT_SECRET` | Development fallback exists | Use a long, random value in deployed environments |
+| `JWT_SECRET` | Development fallback exists | Production requires at least 32 random characters |
 | `CLIENT_URL` | `http://localhost:3000` | Exact browser origin allowed by credentialed CORS and Socket.io |
 | `DATABASE_URL` | — | PostgreSQL connection URL used by Prisma Client |
 | `DIRECT_URL` | — | Direct PostgreSQL URL used for Prisma migrations |
 | `USD_INR_RATE` | `83` | Server fare conversion and USD payment calculation |
 | `NOMINATIM_BASE_URL` | `https://nominatim.openstreetmap.org` | Nominatim base URL |
-| `NOMINATIM_USER_AGENT` | RideX example User-Agent | Identifying User-Agent sent to Nominatim |
+| `NOMINATIM_USER_AGENT` | RideX example User-Agent in development | Production requires an identifying User-Agent with a real contact |
 | `NOMINATIM_COUNTRYCODES` | — | Optional Nominatim country filter |
 | `OSRM_BASE_URL` | `https://router.project-osrm.org` | OSRM routing base URL |
-| `STRIPE_SECRET_KEY` | Empty | Stripe API key; configure a test key for local payments |
-| `STRIPE_WEBHOOK_SECRET` | Empty | Stripe webhook signature secret |
+| `STRIPE_SECRET_KEY` | Empty | Required; this app currently accepts Stripe test-mode keys only |
+| `STRIPE_WEBHOOK_SECRET` | Empty | Required in production for signed Stripe webhooks |
 
 The client also requires `NEXT_PUBLIC_API_URL` to target this server; see [client environment setup](../client/README.md#environment).
+In production, the server validates required values at startup, including an exact HTTPS `CLIENT_URL`, both database URLs, a strong JWT secret, contactable Nominatim User-Agent, and Stripe test-mode keys. Keep the browser and API on HTTPS subdomains of the same domain for the `SameSite=Lax` auth cookie.
 
 ## Scripts
 
@@ -128,9 +129,11 @@ Paths below are relative to `/api`. Unless marked **Public**, routes require the
 | `GET` | `/reviews/driver/:driverId` | Any authenticated user | Paginated driver reviews |
 | `GET` | `/reviews/ride/:rideId` | Any authenticated user | Review for one ride |
 | `GET` | `/receipts/:rideId` | Ride participant | Structured receipt |
-| `GET` | `/health` | Public | Health check |
+| `GET` | `/health` | Public | Readiness check; executes a database probe and returns 503 when unavailable |
 
 Ride status transitions are `REQUESTED → ACCEPTED → ARRIVED → IN_PROGRESS → COMPLETED`; cancellation is available from `REQUESTED`, `ACCEPTED`, and `ARRIVED`. Invalid transitions return HTTP 409.
+
+`GET /healthz` is a lightweight process liveness check for the Render health monitor and does not depend on PostgreSQL. Use `/api/health` from the app to check database readiness; do not configure a platform liveness probe to restart the API whenever Supabase is temporarily unavailable.
 
 ## Socket.io events
 

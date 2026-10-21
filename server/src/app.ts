@@ -18,6 +18,9 @@ app.use(
     credentials: true,
   }),
 );
+app.get('/healthz', (_req, res) => {
+  res.status(200).json({ status: 'ok' });
+});
 app.use(
   '/api',
   rateLimit({
