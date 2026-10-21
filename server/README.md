@@ -55,6 +55,8 @@ Put server variables in `server/.env`. The root `.env.example` is the server tem
 The client also requires `NEXT_PUBLIC_API_URL` to target this server; see [client environment setup](../client/README.md#environment).
 In production, the server validates required values at startup, including an exact HTTPS `CLIENT_URL`, both database URLs, a random JWT secret of at least 32 characters, contactable Nominatim User-Agent, and Stripe test-mode keys. If startup reports a short JWT secret, replace the `JWT_SECRET` value in Render's Environment settings with a newly generated random value of at least 32 characters and redeploy; do not weaken this check. Changing the key invalidates existing login cookies. Production auth cookies use `SameSite=None; Secure` for separate Vercel and Render origins, and state-changing API requests are restricted to the configured `CLIENT_URL` origin. Set that value to the exact Vercel origin (scheme and host only). Some browsers block third-party cookies regardless; if that affects your users, use HTTPS custom domains under the same registrable domain for the client and API.
 
+On Render, production enables Express proxy trust for one platform proxy hop so rate limiting uses the forwarded client IP without trusting arbitrary proxy chains. Location search is debounced in the client and serialized server-side to respect Nominatim's one-request-per-second limit. Configure a genuine contact address in `NOMINATIM_USER_AGENT`; provider HTTP statuses are logged without logging searched addresses.
+
 ## Scripts
 
 Run from the repository root:

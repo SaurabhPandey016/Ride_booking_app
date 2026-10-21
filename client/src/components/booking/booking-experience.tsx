@@ -725,7 +725,7 @@ function LocationField({
     const controller = new AbortController();
     const timer = window.setTimeout(() => {
       void runSearch(query.trim(), controller.signal);
-    }, 400);
+    }, 1000);
 
     return () => {
       window.clearTimeout(timer);

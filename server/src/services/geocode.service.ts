@@ -71,7 +71,8 @@ const requestNominatim = (url: URL): Promise<Response> => {
         },
         signal: AbortSignal.timeout(10_000),
       });
-    } catch (error) {
+    } catch {
+      console.error("Nominatim request failed before receiving a response");
       throw new AppError(502, "Location search is temporarily unavailable");
     }
   });
@@ -101,6 +102,12 @@ const readPlace = (result: NominatimResult): Place | undefined => {
 const fetchNominatim = async (url: URL): Promise<unknown> => {
   const response = await requestNominatim(url);
   if (!response.ok) {
+    console.error("Nominatim returned an unsuccessful response", {
+      status: response.status,
+    });
+    if (response.status === 429 || response.status === 503) {
+      throw new AppError(503, "Location search is busy. Please wait a moment and try again.");
+    }
     throw new AppError(502, "Location search is temporarily unavailable");
   }
 
