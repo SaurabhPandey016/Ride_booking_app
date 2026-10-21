@@ -2,13 +2,14 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, AlertCircle, Printer, RotateCw } from "lucide-react";
+import { ArrowDownToLine, ArrowLeft, AlertCircle, LoaderCircle, RotateCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ProtectedRoute } from "@/components/shared/protected-route";
 import { PageSkeleton } from "@/components/shared/page-skeleton";
 import { api, normalizeApiError } from "@/lib/api";
 import { formatAmount, formatDateTime } from "@/lib/format";
+import { toast } from "sonner";
 
 type CurrencyCode = "INR" | "USD";
 type Receipt = {
@@ -144,6 +145,7 @@ function FareRow({ label, value }: { label: string; value: string }) {
 function ReceiptContent({ rideId }: { rideId: string }) {
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [loading, setLoading] = useState(true);
+  const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const loadReceipt = useCallback(async () => {
@@ -159,6 +161,148 @@ function ReceiptContent({ rideId }: { rideId: string }) {
     }
   }, [rideId]);
 
+  const downloadReceipt = async () => {
+    if (!receipt) {
+      return;
+    }
+
+    setDownloading(true);
+    try {
+      const { jsPDF } = await import("jspdf");
+      const pdf = new jsPDF({ unit: "mm", format: "a4" });
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const margin = 18;
+      const contentWidth = pageWidth - margin * 2;
+      let y = 24;
+
+      const ensureSpace = (height: number) => {
+        if (y + height > 278) {
+          pdf.addPage();
+          y = 20;
+        }
+      };
+
+      const addSection = (title: string) => {
+        ensureSpace(14);
+        y += 4;
+        pdf.setDrawColor(220, 38, 38);
+        pdf.setLineWidth(0.6);
+        pdf.line(margin, y, margin + contentWidth, y);
+        y += 7;
+        pdf.setFont("helvetica", "bold");
+        pdf.setFontSize(11);
+        pdf.setTextColor(35, 35, 40);
+        pdf.text(title, margin, y);
+        y += 7;
+      };
+
+      const addField = (label: string, value: string) => {
+        pdf.setFont("helvetica", "bold");
+        pdf.setFontSize(8);
+        pdf.setTextColor(110, 110, 120);
+        pdf.text(label.toUpperCase(), margin, y);
+        y += 4;
+        pdf.setFont("helvetica", "normal");
+        pdf.setFontSize(10);
+        pdf.setTextColor(35, 35, 40);
+        const lines = pdf.splitTextToSize(value || "—", contentWidth);
+        ensureSpace(lines.length * 5 + 3);
+        pdf.text(lines, margin, y);
+        y += lines.length * 5 + 3;
+      };
+
+      const addFareRow = (label: string, value: string) => {
+        ensureSpace(8);
+        pdf.setFont("helvetica", "normal");
+        pdf.setFontSize(10);
+        pdf.setTextColor(70, 70, 80);
+        pdf.text(label, margin, y);
+        pdf.setFont("helvetica", "bold");
+        pdf.setTextColor(35, 35, 40);
+        pdf.text(value, margin + contentWidth, y, { align: "right" });
+        y += 7;
+      };
+
+      const formatPdfMoney = (amountPaise: number) => {
+        const amount = amountPaise / 100;
+        const paidAmount = receipt.payment.currency === "INR"
+          ? amount
+          : Number(receipt.payment.totalAmount) *
+            (amount / (receipt.fareBreakdown.totalPaise / 100));
+        return formatPdfAmount(paidAmount, receipt.payment.currency);
+      };
+
+      pdf.setFillColor(185, 28, 28);
+      pdf.rect(0, 0, pageWidth, 9, "F");
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(19);
+      pdf.setTextColor(25, 25, 30);
+      pdf.text("RideX", margin, y);
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(10);
+      pdf.setTextColor(90, 90, 100);
+      pdf.text("PAYMENT RECEIPT", pageWidth - margin, y, { align: "right" });
+      y += 9;
+      pdf.setFontSize(9);
+      pdf.text(`Receipt: ${receipt.receiptNumber}`, margin, y);
+      pdf.text(formatDateTime(receipt.date), pageWidth - margin, y, { align: "right" });
+      y += 8;
+
+      addSection("TRIP DETAILS");
+      addField("Passenger", `${receipt.rider.name} · ${receipt.rider.email} · ${receipt.rider.phone}`);
+      addField(
+        "Driver & vehicle",
+        `${receipt.driver.name} · ${receipt.driver.vehicle.vehicleType} ${receipt.driver.vehicle.vehicleModel} · ${receipt.driver.vehicle.vehicleNumber}`,
+      );
+      addField("Pickup", receipt.pickup.address);
+      addField("Drop-off", receipt.drop.address);
+      addField("Distance / duration", `${receipt.distanceKm.toFixed(1)} km · ${receipt.durationMin} minutes`);
+
+      addSection("FARE BREAKDOWN");
+      addFareRow("Base fare", formatPdfMoney(receipt.fareBreakdown.basePaise));
+      addFareRow("Distance", formatPdfMoney(receipt.fareBreakdown.distancePaise));
+      addFareRow("Time", formatPdfMoney(receipt.fareBreakdown.timePaise));
+      if (receipt.fareBreakdown.adjustmentPaise !== 0) {
+        addFareRow("Fare adjustment", formatPdfMoney(receipt.fareBreakdown.adjustmentPaise));
+      }
+      if (receipt.fareBreakdown.taxesPaise !== 0) {
+        addFareRow("Taxes", formatPdfMoney(receipt.fareBreakdown.taxesPaise));
+      }
+
+      ensureSpace(25);
+      y += 2;
+      pdf.setFillColor(250, 242, 242);
+      pdf.roundedRect(margin, y - 5, contentWidth, 19, 2, 2, "F");
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(10);
+      pdf.setTextColor(70, 35, 35);
+      pdf.text(`PAYMENT ${receipt.payment.status}`, margin + 4, y + 2);
+      pdf.setFontSize(14);
+      pdf.text(
+        formatPdfAmount(Number(receipt.payment.totalAmount), receipt.payment.currency),
+        margin + contentWidth - 4,
+        y + 2,
+        { align: "right" },
+      );
+      y += 24;
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(8);
+      pdf.setTextColor(120, 120, 130);
+      pdf.text("Generated by RideX · For help, contact developersaurabh001@gmail.com.", margin, y);
+
+      pdf.save(`${receipt.receiptNumber}.pdf`);
+      toast.success("PDF receipt downloaded.");
+    } catch (downloadError: unknown) {
+      toast.error(
+        downloadError instanceof Error
+          ? `Could not create the PDF receipt: ${downloadError.message}`
+          : "Could not create the PDF receipt. Please try again.",
+      );
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   useEffect(() => {
     void loadReceipt();
   }, [loadReceipt]);
@@ -169,8 +313,11 @@ function ReceiptContent({ rideId }: { rideId: string }) {
         <Button asChild variant="ghost" className="text-zinc-400 hover:text-white">
           <Link href={`/history/${encodeURIComponent(rideId)}`}><ArrowLeft aria-hidden="true" className="h-4 w-4" />Back to trip</Link>
         </Button>
-        <Button onClick={() => window.print()} disabled={!receipt} className="gradient-red text-white">
-          <Printer aria-hidden="true" className="h-4 w-4" />Download / Print receipt
+        <Button onClick={() => void downloadReceipt()} disabled={!receipt || downloading} className="gradient-red text-white">
+          {downloading
+            ? <LoaderCircle aria-hidden="true" className="h-4 w-4 animate-spin" />
+            : <ArrowDownToLine aria-hidden="true" className="h-4 w-4" />}
+          {downloading ? "Creating PDF…" : "Download PDF receipt"}
         </Button>
       </div>
 
@@ -193,6 +340,14 @@ function ReceiptContent({ rideId }: { rideId: string }) {
       )}
     </main>
   );
+}
+
+function formatPdfAmount(amount: number, currency: CurrencyCode): string {
+  const locale = currency === "INR" ? "en-IN" : "en-US";
+  return `${currency} ${new Intl.NumberFormat(locale, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount)}`;
 }
 
 export function ReceiptPage({ rideId }: { rideId: string }) {

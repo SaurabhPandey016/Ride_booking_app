@@ -263,8 +263,13 @@ export function BookingExperience({ initialPickup, initialDrop }: BookingExperie
       choosePlace(target, { ...response.data.data.place, lat, lng });
     } catch (error: unknown) {
       const message = normalizeApiError(error).message || "We couldn’t find an address for that spot.";
+      choosePlace(target, {
+        label: `Pinned location (${lat.toFixed(6)}, ${lng.toFixed(6)})`,
+        lat,
+        lng,
+      });
       setReverseError({ lat, lng, target, message });
-      toast.error(message);
+      toast.info("The pin is set using its exact coordinates, but its street address could not be loaded. You can retry the address lookup.");
     }
   };
 
@@ -281,22 +286,41 @@ export function BookingExperience({ initialPickup, initialDrop }: BookingExperie
     setLocationLoading(true);
     void readBestCurrentPosition(navigator.geolocation)
       .then(async ({ coords }) => {
-        const response = await api.get<ReverseResponse>("/maps/reverse", {
-          params: { lat: coords.latitude, lng: coords.longitude },
-        });
-        setReverseError(null);
-        setPickup({
-          ...response.data.data.place,
+        const coordinates = {
           lat: coords.latitude,
           lng: coords.longitude,
-        });
-        setPickupQuery(`Current location (near ${response.data.data.place.label})`);
+        };
+        const fallbackPlace: Place = {
+          ...coordinates,
+          label: `Current location (${coords.latitude.toFixed(6)}, ${coords.longitude.toFixed(6)})`,
+        };
+
+        setPickup(fallbackPlace);
+        setPickupQuery(fallbackPlace.label);
         setMapTarget("drop");
         setLocationAccuracy(coords.accuracy);
+        setReverseError(null);
+        let addressLabel = fallbackPlace.label;
+        try {
+          const response = await api.get<ReverseResponse>("/maps/reverse", {
+            params: coordinates,
+          });
+          addressLabel = response.data.data.place.label;
+          setPickup({ ...response.data.data.place, ...coordinates });
+          setPickupQuery(`Current location (near ${addressLabel})`);
+        } catch (error: unknown) {
+          setReverseError({
+            ...coordinates,
+            target: "pickup",
+            message: normalizeApiError(error).message,
+          });
+          toast.info("Your pickup pin is set to your device’s exact coordinates. The street address lookup is temporarily unavailable.");
+        }
+
         const accuracyMessage =
           coords.accuracy > 500
             ? `Your browser reports a broad location estimate (±${Math.round(coords.accuracy)} m). Laptop locations can be estimated from nearby Wi-Fi or your network. Drag the pickup pin or search Bela, Satna to correct it.`
-            : `Pickup pin set from your device location (reported accuracy ±${Math.round(coords.accuracy)} m). The address is the nearest mapped address; drag the pin to fine-tune it.`;
+            : `Pickup pin set from your device location (reported accuracy ±${Math.round(coords.accuracy)} m). Drag the pin to fine-tune it.`;
         toast.info(accuracyMessage, { duration: 9000 });
       })
       .catch((error: unknown) => {

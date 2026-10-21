@@ -21,8 +21,15 @@ export const formatPaise = (farePaise: number, currency: CurrencyCode): string =
 export const formatDateTime = (
   date: string | Date,
   locale = "en-IN",
-): string =>
-  new Intl.DateTimeFormat(locale, {
+): string => {
+  const parsedDate = typeof date === "string" ? new Date(date) : date;
+  if (Number.isNaN(parsedDate.getTime())) {
+    return "Date unavailable";
+  }
+
+  return new Intl.DateTimeFormat(locale, {
     dateStyle: "medium",
     timeStyle: "short",
-  }).format(typeof date === "string" ? new Date(date) : date);
+    timeZone: "Asia/Kolkata",
+  }).format(parsedDate);
+};
