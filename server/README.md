@@ -53,7 +53,7 @@ Put server variables in `server/.env`. The root `.env.example` is the server tem
 | `STRIPE_WEBHOOK_SECRET` | Empty | Required in production for signed Stripe webhooks |
 
 The client also requires `NEXT_PUBLIC_API_URL` to target this server; see [client environment setup](../client/README.md#environment).
-In production, the server validates required values at startup, including an exact HTTPS `CLIENT_URL`, both database URLs, a random JWT secret of at least 32 characters, contactable Nominatim User-Agent, and Stripe test-mode keys. If startup reports a short JWT secret, replace the `JWT_SECRET` value in Render's Environment settings with a newly generated random value of at least 32 characters and redeploy; do not weaken this check. Changing the key invalidates existing login cookies. Keep the browser and API on HTTPS subdomains of the same domain for the `SameSite=Lax` auth cookie.
+In production, the server validates required values at startup, including an exact HTTPS `CLIENT_URL`, both database URLs, a random JWT secret of at least 32 characters, contactable Nominatim User-Agent, and Stripe test-mode keys. If startup reports a short JWT secret, replace the `JWT_SECRET` value in Render's Environment settings with a newly generated random value of at least 32 characters and redeploy; do not weaken this check. Changing the key invalidates existing login cookies. Production auth cookies use `SameSite=None; Secure` for separate Vercel and Render origins, and state-changing API requests are restricted to the configured `CLIENT_URL` origin. Set that value to the exact Vercel origin (scheme and host only). Some browsers block third-party cookies regardless; if that affects your users, use HTTPS custom domains under the same registrable domain for the client and API.
 
 ## Scripts
 
@@ -183,7 +183,7 @@ Enums: `Role` (`RIDER`, `DRIVER`), `RideStatus`, `PaymentStatus`, and `VehicleTy
 
 - Helmet security headers, credentialed CORS restricted to `CLIENT_URL`, and a general API rate limit.
 - A stricter limit on registration and login attempts.
-- JWT session in an httpOnly, sameSite=lax cookie; `Secure` is enabled in production.
+- JWT session in an httpOnly cookie; `SameSite=None; Secure` in production and `SameSite=Lax` in development.
 - bcryptjs password hashing with 12 rounds.
 - Zod validation for request inputs and coordinate ranges.
 - Role checks and participant ownership checks on protected operations.

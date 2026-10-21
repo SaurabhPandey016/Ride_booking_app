@@ -312,7 +312,7 @@ Supabase may pause an inactive free project. The app checks database readiness a
 
 ### 2. Use same-site HTTPS domains for cookie authentication
 
-The auth cookie is `httpOnly`, `Secure` in production, and `SameSite=Lax`. The default `*.vercel.app` and `*.onrender.com` addresses are different sites, so browsers can withhold this cookie on cross-site API and Socket.io requests. For a working production login, use HTTPS custom domains under the **same registrable domain**, for example:
+The auth cookie is `httpOnly` and `Secure` in production. Production uses `SameSite=None` to support separate Vercel and Render origins, while state-changing API calls validate the browser `Origin` against `CLIENT_URL`. Set Render `CLIENT_URL` to the exact Vercel origin. Some browsers block third-party cookies regardless of this setting; for the most reliable login, use HTTPS custom domains under the **same registrable domain**, for example:
 
 - Client: `https://app.your-domain.com` on Vercel.
 - API: `https://api.your-domain.com` on Render.

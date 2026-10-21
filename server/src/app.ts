@@ -5,6 +5,7 @@ import helmet from 'helmet';
 import { rateLimit } from 'express-rate-limit';
 import { apiRouter } from './routes/index.js';
 import { errorHandler } from './middlewares/errorHandler.js';
+import { validateRequestOrigin } from './middlewares/csrfOrigin.middleware.js';
 import { env } from './config/env.js';
 import { webhook } from './controllers/payment.controller.js';
 import { asyncHandler } from './utils/asyncHandler.js';
@@ -39,6 +40,7 @@ app.post(
   express.raw({ type: 'application/json' }),
   asyncHandler(webhook),
 );
+app.use('/api', validateRequestOrigin);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
